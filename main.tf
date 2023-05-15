@@ -10,34 +10,42 @@ resource "aws_internet_gateway" "main_igw" {
   vpc_id = aws_vpc.VPC.id
 }
 
-# Create a subnet within the VPC
+# Create 2 subnets within the VPC
 resource "aws_subnet" "main_subnet" {
-  vpc_id                  = aws_vpc.VPC.id
-  cidr_block              = "10.0.0.0/24"
-  availability_zone       = "us-east-1" 
+  vpc_id            = aws_vpc.VPC.id
+  cidr_block        = "10.0.0.0/24"
+  availability_zone = "us-east-1a"
+
+}
+
+resource "aws_subnet" "main_subnet2" {
+  vpc_id            = aws_vpc.VPC.id
+  cidr_block        = "10.0.1.0/24"
+  availability_zone = "us-east-1b"
+
 }
 
 # Create a security group for traffic on port 80
 resource "aws_security_group" "SG" {
   name        = "main_security_group"
   description = "Allow inbound traffic on port 80"
-  vpc_id = aws_vpc.VPC.id
+  vpc_id      = aws_vpc.VPC.id
 
   ingress {
     from_port   = 80
     to_port     = 80
     protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
-  
+
   }
 
 }
 
 # Create two EC2 instances
 resource "aws_instance" "EC2_1" {
-  ami           = "ami-007855ac798b5175e" 
-  instance_type = "t2.micro"
-  subnet_id     = aws_subnet.main_subnet.id
+  ami                    = "ami-007855ac798b5175e"
+  instance_type          = "t2.micro"
+  subnet_id              = aws_subnet.main_subnet.id
   vpc_security_group_ids = [aws_security_group.SG.id]
 
   tags = {
@@ -46,9 +54,9 @@ resource "aws_instance" "EC2_1" {
 }
 
 resource "aws_instance" "EC2_2" {
-  ami           = "ami-007855ac798b5175e"  
-  instance_type = "t2.micro"
-  subnet_id     = aws_subnet.main_subnet.id
+  ami                    = "ami-007855ac798b5175e"
+  instance_type          = "t2.micro"
+  subnet_id              = aws_subnet.main_subnet2.id
   vpc_security_group_ids = [aws_security_group.SG.id]
 
   tags = {
@@ -60,7 +68,8 @@ resource "aws_instance" "EC2_2" {
 resource "aws_lb" "ELB" {
   name               = "ELB"
   load_balancer_type = "application"
-  subnets            = [aws_subnet.main_subnet.id]
+  subnets            = [aws_subnet.main_subnet.id, aws_subnet.main_subnet2.id]
+
   security_groups = [aws_security_group.SG.id]
 
   tags = {
@@ -68,12 +77,12 @@ resource "aws_lb" "ELB" {
   }
 }
 
-resource "aws_lb_target_group_attachment" "Elb_attach" {
+resource "aws_lb_target_group_attachment" "EC2_1" {
   target_group_arn = aws_lb.ELB.arn
   target_id        = aws_instance.EC2_1.id
   port             = 80
 }
-resource "aws_lb_target_group_attachment" "Elb_attach_2" {
+resource "aws_lb_target_group_attachment" "EC2_2" {
   target_group_arn = aws_lb.ELB.arn
   target_id        = aws_instance.EC2_2.id
   port             = 80
